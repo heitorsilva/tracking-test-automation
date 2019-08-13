@@ -1,0 +1,26 @@
+server: "hub-cloud.browserstack.com"
+user: "username"
+key: "access_key"
+
+common_caps:
+  "project": "QA"
+  "browserstack.local": true
+  "browserstack.networkLogs": true
+  "browserstack.debug": false
+  "browserstack.console": "verbose"
+  "browserstack.selenium_version": "3.14.0"
+  "browserstack.seleniumLogs": true
+  "proxy": null
+
+browser_caps:
+  -
+    "os": "Windows"
+    "os_version": "10"
+    "browser": "Chrome"
+    "browser_version": "73.0"
+    "resolution": "1920x1200"
+  -
+    "os": "Windows"
+    "os_version": "10"
+    "browser": "Firefox"
+    "resolution": "1920x1200"

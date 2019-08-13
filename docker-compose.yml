@@ -1,0 +1,90 @@
+version: "3.7"
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: tracking-test-automation-api
+    working_dir: /api
+    tty: true
+    stdin_open: true
+    command: >
+      /bin/sh -c "
+        bundle install
+        rerun -- rackup --host 0.0.0.0 --port 3000 config.ru
+      "
+    volumes:
+      - ./api:/api:delegated
+    ports:
+      - 3000:3000
+    networks:
+      trackingprototype:
+        aliases:
+          - api.localhost
+  qa:
+    build:
+      context: ./qa
+      dockerfile: Dockerfile
+    image: tracking-test-automation-qa
+    working_dir: /qa
+    tty: true
+    stdin_open: true
+    command: >
+      /bin/sh -c "
+        while ! nc -zv api 3000;
+        do
+          echo 'API not ready' && sleep 5
+        done
+        while ! nc -zv web 8000;
+        do
+          echo 'Web not ready' && sleep 5
+        done
+        BrowserStackLocal --key ${BROWSERSTACK_ACCESS_KEY:-bs_access_key} --local-proxy-host ${LOCAL_PROXY_HOST:-127.0.0.1} --local-proxy-port ${LOCAL_PROXY_PORT:-8081} --local-proxy-pass --force-proxy --force-local --enable-logging-for-api --verbose 3 --daemon start
+        rspec -f d
+      "
+    volumes:
+      - ./qa:/qa:delegated
+    ports:
+      - 8080-8581:8080-8581
+    networks:
+      trackingprototype:
+        aliases:
+          - qa.localhost
+    environment:
+      BROWSERSTACK_USERNAME: ${BROWSERSTACK_USERNAME:-bs_username}
+      BROWSERSTACK_ACCESS_KEY: ${BROWSERSTACK_ACCESS_KEY:-bs_access_key}
+    depends_on:
+      - api
+      - web
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    image: tracking-test-automation-web
+    working_dir: /web
+    tty: true
+    stdin_open: true
+    command: >
+      /bin/sh -c "
+        while ! nc -zv api 3000;
+        do
+          echo 'API not ready' && sleep 5
+        done
+        if [ ! -d /web/node_modules ]; then
+          yarn
+        fi
+        yarn run serve --host 0.0.0.0 --port 8000
+      "
+    volumes:
+      - ./web:/web:delegated
+    ports:
+      - 8000:8000
+    networks:
+      trackingprototype:
+        aliases:
+          - web.localhost
+    depends_on:
+      - api
+networks:
+  trackingprototype:
+    driver: "bridge"

@@ -1,0 +1,46 @@
+require 'rspec'
+require 'parallel'
+require 'yaml'
+
+desc 'Executes tests on a single browser'
+task :single do
+  ENV['CONFIG_NAME'] ||= 'single'
+  ENV['TASK_ID'] ||= '0'
+
+  args = ARGV[1]
+  args ||= ['spec', '-f', 'd']
+
+  success = RSpec::Core::Runner.run(args, $stderr, $stdout).zero?
+
+  exit(1) unless success
+
+  0
+end
+
+desc 'Executes tests in parallel on multiple browsers'
+task :parallel do
+  ENV['CONFIG_NAME'] ||= 'parallel'
+
+  spec = ARGV[1]
+  args ||= ['spec', '-f', 'd']
+
+  amount = num_of_configs
+
+  success = Parallel.all?((0...amount).to_a, in_processes: amount) do |task_id|
+    ENV['TASK_ID'] = task_id.to_s
+
+    RSpec::Core::Runner.run(args, $stderr, $stdout).zero?
+  end
+
+  exit(1) unless success
+
+  0
+end
+
+def num_of_configs
+  config_name = ENV['CONFIG_NAME']
+  config_file_name =
+    File.join(File.dirname(__FILE__), "config/#{config_name}.config.yml")
+  config_file = YAML.safe_load(File.read(config_file_name))
+  config_file['browser_caps'].size
+end
